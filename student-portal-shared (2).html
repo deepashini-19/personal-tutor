@@ -1,0 +1,618 @@
+<title>Personal Tutor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@500;600&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one link, two views. The admin sees a live marks table on top, then sheet and quiz management side by side. A student sees the same sheets and quizzes read-only, plus her own marks. */
+:root{
+  --bg:#fdf1f8; --bg2:#efe9fc; --surface:#ffffff; --ink:#3b2a4d; --muted:#7a6890; --line:#ecd7f0;
+  --accent:#8e5fc7; --accent-ink:#ffffff; --soft:#f6e6fb;
+  --pink:#fbd0e4; --pink-ink:#9b3b6f;
+  --good:#2f855a; --good-bg:#e0f5ea; --bad:#b83a5a; --bad-bg:#fde4ec;
+  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --f-body:'Public Sans','Segoe UI',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1e1528; --bg2:#271a38; --surface:#2b2039; --ink:#f4e9fb; --muted:#bca9d2; --line:#44345c;
+    --accent:#c9a0f0; --accent-ink:#2a1840; --soft:#3a2a50;
+    --pink:#5a2c49; --pink-ink:#ffc2de;
+    --good:#6ee7a0; --good-bg:#17332a; --bad:#ff8fab; --bad-bg:#3d1f2c; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1e1528; --bg2:#271a38; --surface:#2b2039; --ink:#f4e9fb; --muted:#bca9d2; --line:#44345c;
+  --accent:#c9a0f0; --accent-ink:#2a1840; --soft:#3a2a50;
+  --pink:#5a2c49; --pink-ink:#ffc2de;
+  --good:#6ee7a0; --good-bg:#17332a; --bad:#ff8fab; --bad-bg:#3d1f2c; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); background-image:linear-gradient(160deg,var(--bg) 0%,var(--bg2) 100%); background-attachment:fixed;
+  color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.5;
+  padding-block:24px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 24px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-size:clamp(26px,4vw,36px);line-height:1.1;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:6px 0 0;color:var(--muted)}
+.hright{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:999px;background:var(--pink);color:var(--pink-ink);border:1px solid var(--line)}
+.titlebox{display:flex;align-items:center;gap:14px}
+.toy{display:block;flex-shrink:0}
+.toy.lg{width:72px;height:72px}
+.toyrow{max-width:1120px;margin:28px auto 0;display:flex;justify-content:center;align-items:flex-end;gap:22px;flex-wrap:wrap}
+.toyrow .toy{width:52px;height:52px}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@media (prefers-reduced-motion: no-preference){
+  .toy{animation:bob 4.5s ease-in-out infinite}
+  .toy:nth-child(2n){animation-delay:-1.5s}
+  .toy:nth-child(3n){animation-delay:-3s}
+}
+@media (max-width:520px){.toy.lg{width:52px;height:52px}}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;min-width:0;box-shadow:0 8px 24px rgba(160,110,210,.12)}
+h2{font-family:var(--f-display);font-size:20px;margin:0 0 4px;letter-spacing:-.005em}
+h3{font-family:var(--f-display);font-size:16px;margin:18px 0 8px}
+.hint{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button,.btn{font:inherit;font-weight:500;font-size:14px;border-radius:7px;padding:8px 14px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;text-decoration:none;display:inline-block}
+button:hover,.btn:hover{filter:brightness(1.08)}
+button.ghost,.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+button.ghost:hover{background:var(--soft);filter:none}
+button.danger{color:var(--bad);border-color:var(--line);background:transparent}
+button.danger.arm{background:var(--bad);color:#fff;border-color:var(--bad)}
+button.sm{padding:5px 10px;font-size:13px}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=text],input[type=number],textarea,select{width:100%;font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);margin:4px 0}
+textarea{resize:vertical}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px}
+.item .meta{min-width:0;display:flex;flex-direction:column}
+.item .name{font-weight:600;overflow-wrap:anywhere}
+.item .sub{font-size:12.5px;color:var(--muted)}
+.item .btns{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.empty{border:1px dashed var(--line);border-radius:8px;padding:18px;color:var(--muted);text-align:center}
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:14px;margin-bottom:14px;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.drop span{color:var(--muted);font-size:13.5px}
+.viewer{margin-top:14px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.viewer-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;background:var(--soft);flex-wrap:wrap}
+.viewer-bar b{overflow-wrap:anywhere}
+.viewer iframe{display:block;width:100%;height:480px;border:0;background:#fff}
+.q{padding:14px 0;border-top:1px solid var(--line)}
+.q:first-child{border-top:0}
+.q p{margin:0 0 8px;font-weight:600}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;margin:6px 0;border:1px solid var(--line);border-radius:7px;cursor:pointer}
+.opt:hover{background:var(--soft)}
+.opt input{margin-top:4px;accent-color:var(--accent)}
+.opt.correct{background:var(--good-bg);border-color:var(--good)}
+.opt.wrong{background:var(--bad-bg);border-color:var(--bad)}
+.qbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.result{margin-top:16px;padding:16px;border-radius:8px;background:var(--soft);text-align:center}
+.score{font-family:var(--f-mono);font-weight:600;font-size:32px}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.chip{font-family:var(--f-mono);font-size:12.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}
+.chip.g{color:var(--good)} .chip.b{color:var(--bad)}
+details.admin{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
+details.admin summary{cursor:pointer;font-weight:600}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qblock{border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0;background:var(--bg)}
+pre{background:var(--bg);border:1px solid var(--line);padding:10px;border-radius:7px;overflow:auto;font-family:var(--f-mono);font-size:12px;margin:8px 0}
+.status{font-size:13px;color:var(--muted);min-height:18px;margin:6px 0 0}
+.status.err{color:var(--bad)}
+.status.ok{color:var(--good)}
+.notice{padding:14px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.live{font-family:var(--f-mono);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.sc{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.att{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--line)}
+.att:last-child{border-bottom:0}
+.neg{color:var(--bad)}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="titlebox">
+      <svg class="toy lg" aria-hidden="true" viewBox="0 0 100 100"><use href="#t-docbear"></use></svg>
+      <div>
+        <h1>Personal Tutor</h1>
+        <p id="subline"></p>
+      </div>
+    </div>
+    <div class="hright">
+      <button class="ghost sm" type="button" id="previewBtn" data-act="preview" hidden>Preview student page</button>
+      <span class="badge" id="modeBadge" hidden></span>
+    </div>
+  </header>
+
+  <section class="panel" id="resultsPanel" hidden>
+    <div class="qbar">
+      <div><h2>Student marks</h2><p class="hint" style="margin:0">Each submitted quiz appears here the moment it is finished.</p></div>
+      <span class="live" id="liveTag"><i></i><span id="liveText">Live</span></span>
+    </div>
+    <div id="resultsBody" style="margin-top:12px"></div>
+  </section>
+
+  <div class="grid" id="app" hidden>
+    <section class="panel" id="sheetsPanel">
+      <h2>Formula sheets</h2>
+      <p class="hint" id="sheetsHint"></p>
+      <div class="drop" id="uploadBox" hidden>
+        <span>Add one or more PDF formula sheets</span>
+        <button type="button" id="pickPdf">Upload PDFs</button>
+        <input type="file" id="pdfInput" accept="application/pdf" multiple hidden>
+      </div>
+      <p class="status" id="upStatus"></p>
+      <div class="list" id="sheetList"></div>
+      <div class="viewer" id="viewer" hidden>
+        <div class="viewer-bar">
+          <b id="viewerTitle"></b>
+          <span style="display:flex;gap:6px">
+            <a class="btn ghost sm" id="viewerOpen" target="_blank" rel="noopener">Open in new tab</a>
+            <button class="ghost sm" type="button" data-act="close-viewer">Close</button>
+          </span>
+        </div>
+        <iframe id="viewerFrame" title="Formula sheet"></iframe>
+      </div>
+    </section>
+
+    <section class="panel" id="quizPanel">
+      <div id="quizHome">
+        <h2>Practice quizzes</h2>
+        <p class="hint">Pick a quiz, answer what you know, and submit to see your score.</p>
+        <div class="list" id="quizList"></div>
+
+        <div id="myMarks" hidden>
+          <h3>Your recent marks</h3>
+          <div id="myMarksList"></div>
+        </div>
+
+        <details class="admin" id="adminQuiz" hidden>
+          <summary>Add a quiz</summary>
+          <h3>Upload quiz files (JSON)</h3>
+          <input type="file" id="quizFile" accept=".json,application/json" multiple>
+          <details style="margin-top:8px"><summary class="hint" style="cursor:pointer">See the JSON format</summary>
+<pre>{
+  "title": "Calculus Basics",
+  "plus": 4,
+  "minus": -1,
+  "questions": [
+    {
+      "q": "Derivative of sin(x)?",
+      "options": ["cos(x)", "-cos(x)", "tan(x)", "-sin(x)"],
+      "answer": 0
+    }
+  ]
+}
+// "answer" is the position of the right option (0 = first).
+// "plus" and "minus" are optional and default to 4 and -1.</pre>
+          </details>
+          <h3>Or build one here</h3>
+          <input type="text" id="bTitle" placeholder="Quiz title">
+          <div class="row">
+            <label class="hint">Marks if correct<input type="number" id="bPlus" value="4"></label>
+            <label class="hint">Marks if wrong<input type="number" id="bMinus" value="-1"></label>
+          </div>
+          <div id="builder"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button class="ghost sm" type="button" data-act="add-q">Add question</button>
+            <button type="button" data-act="save-quiz">Save quiz</button>
+          </div>
+          <p class="status" id="quizStatus"></p>
+        </details>
+      </div>
+
+      <div id="quizTaker" hidden>
+        <div class="qbar">
+          <button class="ghost sm" type="button" data-act="back">← All quizzes</button>
+          <span class="mono hint" id="markNote" style="margin:0"></span>
+        </div>
+        <h2 id="quizTitle"></h2>
+        <form id="quizForm"></form>
+        <div style="margin-top:14px"><button type="button" id="submitBtn" data-act="submit">Submit quiz</button></div>
+        <div id="quizResult"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Decorative doctor toys: drawn once, reused below -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="t-docbear" viewBox="0 0 100 100">
+    <circle cx="27" cy="26" r="12" fill="#e7b98f"/><circle cx="27" cy="26" r="6" fill="#f7b6d2"/>
+    <circle cx="73" cy="26" r="12" fill="#e7b98f"/><circle cx="73" cy="26" r="6" fill="#f7b6d2"/>
+    <ellipse cx="50" cy="82" rx="23" ry="17" fill="#ffffff" stroke="#e1d0f0" stroke-width="2"/>
+    <circle cx="28" cy="78" r="8" fill="#ffffff" stroke="#e1d0f0" stroke-width="2"/>
+    <circle cx="72" cy="78" r="8" fill="#ffffff" stroke="#e1d0f0" stroke-width="2"/>
+    <circle cx="50" cy="46" r="26" fill="#e7b98f"/>
+    <ellipse cx="50" cy="56" rx="11" ry="8" fill="#f9e3cf"/><ellipse cx="50" cy="52" rx="4" ry="3" fill="#7a4b5e"/>
+    <circle cx="41" cy="42" r="2.8" fill="#4a3358"/><circle cx="59" cy="42" r="2.8" fill="#4a3358"/>
+    <path d="M45 59 q5 5 10 0" fill="none" stroke="#7a4b5e" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M26 30 Q50 18 74 30" fill="none" stroke="#c9b3f2" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="50" cy="24" r="7" fill="#dfe9ff" stroke="#9fb0e0" stroke-width="2"/>
+    <path d="M36 68 Q38 90 50 90 Q62 90 64 68" fill="none" stroke="#8e5fc7" stroke-width="2.6" stroke-linecap="round"/>
+    <circle cx="50" cy="90" r="4" fill="#f48fb8"/>
+    <rect x="65" y="78" width="10" height="3.4" fill="#f48fb8"/><rect x="68.3" y="74.7" width="3.4" height="10" fill="#f48fb8"/>
+  </symbol>
+  <symbol id="t-kit" viewBox="0 0 100 100">
+    <rect x="35" y="18" width="30" height="20" rx="6" fill="none" stroke="#c06a96" stroke-width="5"/>
+    <rect x="12" y="32" width="76" height="56" rx="9" fill="#f9b8d4"/>
+    <rect x="12" y="32" width="76" height="12" rx="6" fill="#f5a3c7"/>
+    <rect x="43" y="46" width="14" height="32" rx="2" fill="#ffffff"/>
+    <rect x="34" y="55" width="32" height="14" rx="2" fill="#ffffff"/>
+  </symbol>
+  <symbol id="t-heart" viewBox="0 0 100 100">
+    <path d="M50 88 C12 62 12 28 33 25 C43 24 50 31 50 36 C50 31 57 24 67 25 C88 28 88 62 50 88 Z" fill="#f7a8cc"/>
+    <path d="M24 52 H38 L44 38 L53 66 L59 52 H76" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="t-steth" viewBox="0 0 100 100">
+    <circle cx="28" cy="12" r="5" fill="#c9b3f2"/><circle cx="72" cy="12" r="5" fill="#c9b3f2"/>
+    <path d="M28 16 C28 48 50 48 50 60 M72 16 C72 48 50 48 50 60" fill="none" stroke="#8e5fc7" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M50 60 C50 86 80 86 80 64" fill="none" stroke="#8e5fc7" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="80" cy="62" r="10" fill="#e6dcf7" stroke="#8e5fc7" stroke-width="3.5"/>
+    <circle cx="80" cy="62" r="3.5" fill="#f7a8cc"/>
+  </symbol>
+  <symbol id="t-thermo" viewBox="0 0 100 100">
+    <rect x="43" y="8" width="16" height="64" rx="8" fill="#ffffff" stroke="#c9b3f2" stroke-width="3.5"/>
+    <circle cx="51" cy="78" r="14" fill="#f7a8cc" stroke="#c9b3f2" stroke-width="3.5"/>
+    <rect x="48.5" y="30" width="5" height="48" rx="2.5" fill="#f7a8cc"/>
+    <path d="M64 22 h8 M64 34 h6 M64 46 h8 M64 58 h6" stroke="#c9b3f2" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="t-pill" viewBox="0 0 100 100">
+    <g transform="rotate(-35 50 50)">
+      <path d="M50 34 H30 a16 16 0 0 0 0 32 H50 Z" fill="#f7a8cc"/>
+      <path d="M50 34 H70 a16 16 0 0 1 0 32 H50 Z" fill="#c9b3f2"/>
+      <path d="M26 42 H44" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" opacity=".6"/>
+    </g>
+  </symbol>
+</svg>
+
+<div class="toyrow" aria-hidden="true">
+  <svg class="toy" viewBox="0 0 100 100"><use href="#t-heart"></use></svg>
+  <svg class="toy" viewBox="0 0 100 100"><use href="#t-steth"></use></svg>
+  <svg class="toy" viewBox="0 0 100 100"><use href="#t-kit"></use></svg>
+  <svg class="toy" viewBox="0 0 100 100"><use href="#t-docbear"></use></svg>
+  <svg class="toy" viewBox="0 0 100 100"><use href="#t-thermo"></use></svg>
+  <svg class="toy" viewBox="0 0 100 100"><use href="#t-pill"></use></svg>
+  <svg class="toy" viewBox="0 0 100 100"><use href="#t-heart"></use></svg>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let db = null, assets = null, userNs = null, uid = null;
+let isAdmin = false, preview = false, adminMode = false;
+let sheets = [], quizzes = [], results = [], myAttempts = [];
+let active = null, graded = false, armed = null, armTimer = null;
+let openStudents = new Set(), renderToken = 0;
+
+function fmtSize(b){ if(!b) return ''; return b > 1048576 ? (b/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(b/1024))+' KB'; }
+function fmtTime(t){ try{ return new Date(t).toLocaleString([], {dateStyle:'medium', timeStyle:'short'}); }catch(e){ return ''; } }
+function setStatus(id, msg, cls){ const el=$(id); if(!el) return; el.textContent = msg || ''; el.className = 'status' + (cls ? ' '+cls : ''); }
+
+/* ---------- start ---------- */
+async function init(){
+  const c = window.claude;
+  if(c && c.use){
+    const [d,u,a] = await Promise.all([c.use('db'), c.use('user'), c.use('assets')]);
+    db = d; assets = a; userNs = u;
+    isAdmin = u ? await u.canEdit() : false;
+    uid = u ? await u.id() : null;
+    if(!isAdmin) assets = null;
+  }
+  if(!db){
+    $('subline').textContent = '';
+    return;
+  }
+  $('app').hidden = false;
+  if(isAdmin){ addBuilderQ(); $('previewBtn').hidden = false; }
+  setMode();
+
+  db.collection('sheets').orderBy('createdAt','asc').onSnapshot(s => {
+    sheets = s.docs.map(d => ({id:d.id, ...d.data()})); renderSheets();
+  }, e => setStatus('upStatus','Could not load sheets ('+e.code+').','err'));
+  db.collection('quizzes').orderBy('createdAt','asc').onSnapshot(s => {
+    quizzes = s.docs.map(d => ({id:d.id, ...d.data()})); renderQuizzes();
+  }, e => setStatus('quizStatus','Could not load quizzes ('+e.code+').','err'));
+
+  if(isAdmin){
+    db.collection('results').onSnapshot(s => {
+      results = s.docs.map(d => ({id:d.id, ...d.data()}));
+      $('liveText').textContent = 'Live · updated ' + new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit', second:'2-digit'});
+      renderResults();
+    }, e => { $('liveText').textContent = 'Could not load marks ('+e.code+')'; });
+  }
+  if(uid && !isAdmin){
+    db.doc('results/'+uid).onSnapshot(s => {
+      myAttempts = s.exists ? (s.data().attempts || []) : []; renderMine();
+    }, () => {});
+  }
+}
+
+function setMode(){
+  adminMode = isAdmin && !preview;
+  $('modeBadge').hidden = false;
+  $('modeBadge').textContent = adminMode ? 'Admin' : (isAdmin ? 'Student preview' : 'Student');
+  $('previewBtn').textContent = preview ? 'Back to admin page' : 'Preview student page';
+  $('subline').textContent = adminMode
+    ? 'Upload formula sheets and quizzes, and watch student marks arrive live.'
+    : 'Formula sheets and practice quizzes. Correct answer +4, wrong answer −1, skipped 0.';
+  $('sheetsHint').textContent = adminMode
+    ? 'Upload and remove sheets here. Students can only read them.'
+    : 'Open any sheet to read it here.';
+  $('uploadBox').hidden = !adminMode;
+  $('pickPdf').disabled = !assets;
+  if(adminMode && !assets) setStatus('upStatus', 'PDF upload is not available in this view.', 'err');
+  $('adminQuiz').hidden = !adminMode;
+  $('resultsPanel').hidden = !adminMode;
+  $('myMarks').hidden = adminMode;
+  armed = null;
+  backToList(); renderSheets(); renderQuizzes(); renderMine();
+  if(adminMode) renderResults();
+}
+
+/* ---------- admin: live marks ---------- */
+async function renderResults(){
+  const token = ++renderToken, el = $('resultsBody');
+  if(!adminMode) return;
+  if(!results.length){
+    el.innerHTML = '<div class="empty">No marks yet. When a student submits a quiz, her score shows up here instantly.</div>';
+    return;
+  }
+  let ps = {};
+  try{ if(userNs) ps = await userNs.profiles(results.map(r => r.id)); }catch(e){}
+  if(token !== renderToken) return;
+  const rows = results.map(r => {
+    const a = (r.attempts || []).slice();
+    const last = a[a.length-1] || null;
+    let best = null; a.forEach(x => { if(!best || x.score > best.score) best = x; });
+    return {id:r.id, name:(ps[r.id] && ps[r.id].name) || 'Student', attempts:a, last, best};
+  }).sort((x,y) => ((y.last&&y.last.at)||0) - ((x.last&&x.last.at)||0));
+  const sc = x => x ? '<span class="'+(x.score<0?'neg':'')+'">'+x.score+' / '+x.max+'</span>' : '–';
+  el.innerHTML = '<div class="tablewrap"><table><thead><tr><th>Student</th><th>Attempts</th><th>Latest</th><th>Best</th><th>Last active</th><th></th></tr></thead><tbody>'
+    + rows.map(r => {
+      const open = openStudents.has(r.id);
+      let html = '<tr><td><b>'+esc(r.name)+'</b></td><td class="sc">'+r.attempts.length+'</td>'
+        + '<td class="sc">'+sc(r.last)+(r.last?'<br><span class="hint" style="margin:0;font-family:var(--f-body)">'+esc(r.last.title)+'</span>':'')+'</td>'
+        + '<td class="sc">'+sc(r.best)+'</td><td>'+(r.last?esc(fmtTime(r.last.at)):'')+'</td>'
+        + '<td><button class="ghost sm" type="button" data-act="toggle-student" data-id="'+esc(r.id)+'">'+(open?'Hide':'Details')+'</button></td></tr>';
+      if(open){
+        html += '<tr><td colspan="6">'+ r.attempts.slice().reverse().map(x =>
+          '<div class="att"><span><b>'+esc(x.title)+'</b></span><span class="mono">'+x.score+' / '+x.max
+          +' · ✔ '+x.right+' ✘ '+x.wrong+' ○ '+x.skipped+'</span><span class="hint" style="margin:0">'+esc(fmtTime(x.at))+'</span></div>').join('') + '</td></tr>';
+      }
+      return html;
+    }).join('') + '</tbody></table></div>';
+}
+
+/* ---------- student: own marks ---------- */
+function renderMine(){
+  const el = $('myMarksList');
+  if(adminMode){ return; }
+  if(!myAttempts.length){ el.innerHTML = '<div class="empty">Your marks will show here after you finish a quiz.</div>'; return; }
+  el.innerHTML = myAttempts.slice(-5).reverse().map(x =>
+    '<div class="att"><span><b>'+esc(x.title)+'</b></span><span class="mono">'+x.score+' / '+x.max+'</span><span class="hint" style="margin:0">'+esc(fmtTime(x.at))+'</span></div>').join('');
+}
+async function sendResult(rec){
+  if(!uid) throw {code:'no_identity'};
+  const ref = db.doc('results/'+uid);
+  const snap = await ref.get();
+  const prev = snap.exists ? (snap.data().attempts || []) : [];
+  await ref.set({attempts: prev.concat([rec]).slice(-200), updatedAt: rec.at});
+}
+
+/* ---------- formula sheets ---------- */
+function renderSheets(){
+  const el = $('sheetList');
+  if(!sheets.length){
+    el.innerHTML = '<div class="empty">'+(adminMode ? 'No formula sheets yet. Upload your first PDF above.' : 'No formula sheets have been added yet. Check back soon.')+'</div>';
+    return;
+  }
+  el.innerHTML = sheets.map(s => {
+    const key = 'sheet:'+s.id, on = armed === key;
+    return '<div class="item"><div class="meta"><span class="name">'+esc(s.title||'Untitled')+'</span><span class="sub">PDF'+(s.size?' · '+fmtSize(s.size):'')+'</span></div>'
+      + '<div class="btns"><button class="sm" type="button" data-act="view" data-id="'+esc(s.id)+'">View</button>'
+      + (adminMode ? '<button class="sm danger'+(on?' arm':'')+'" type="button" data-act="del-sheet" data-id="'+esc(s.id)+'">'+(on?'Confirm delete':'Delete')+'</button>' : '')
+      + '</div></div>';
+  }).join('');
+}
+function viewSheet(id){
+  const s = sheets.find(x => x.id === id); if(!s || !s.asset) return;
+  const url = '/_blob/' + s.asset;
+  $('viewerTitle').textContent = s.title || 'Formula sheet';
+  $('viewerFrame').src = url; $('viewerOpen').href = url;
+  $('viewer').hidden = false;
+  $('viewer').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function closeViewer(){ $('viewerFrame').src = 'about:blank'; $('viewer').hidden = true; }
+
+async function uploadPdfs(files){
+  if(!assets || !db) return;
+  const list = [...files]; let ok = 0;
+  for(const f of list){
+    if(f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)){ setStatus('upStatus', f.name+' is not a PDF, skipped.', 'err'); continue; }
+    setStatus('upStatus', 'Uploading '+f.name+' ('+(ok+1)+' of '+list.length+')…');
+    try{
+      const r = await assets.upload(f, {type:'application/pdf'});
+      await db.collection('sheets').add({title:f.name.replace(/\.pdf$/i,''), asset:r.id, size:r.sizeBytes, createdAt:Date.now()});
+      ok++;
+    }catch(e){
+      setStatus('upStatus', 'Could not upload '+f.name+': '+(e.code==='too_large'?'file is over 20 MB':e.code==='quota_or_state'?'storage is full':(e.message||e.code||'unknown error')), 'err');
+      return;
+    }
+  }
+  setStatus('upStatus', ok ? ok+' sheet'+(ok>1?'s':'')+' uploaded.' : '', ok ? 'ok' : '');
+}
+async function deleteSheet(id){
+  const s = sheets.find(x => x.id === id); if(!s) return;
+  try{
+    if(assets && s.asset) await assets.delete(s.asset);
+    await db.doc('sheets/'+id).delete();
+    if(!$('viewer').hidden && $('viewerOpen').href.endsWith('/_blob/'+s.asset)) closeViewer();
+  }catch(e){ setStatus('upStatus','Could not delete: '+(e.message||e.code), 'err'); }
+}
+
+/* ---------- quizzes ---------- */
+function renderQuizzes(){
+  const el = $('quizList');
+  if(!quizzes.length){
+    el.innerHTML = '<div class="empty">'+(adminMode ? 'No quizzes yet. Add one below.' : 'No quizzes have been added yet. Check back soon.')+'</div>';
+    return;
+  }
+  el.innerHTML = quizzes.map(q => {
+    const key = 'quiz:'+q.id, on = armed === key;
+    return '<div class="item"><div class="meta"><span class="name">'+esc(q.title)+'</span><span class="sub mono">'+q.questions.length+' questions · +'+q.plus+' / '+q.minus+'</span></div>'
+      + '<div class="btns"><button class="sm" type="button" data-act="start" data-id="'+esc(q.id)+'">'+(adminMode?'Try':'Start')+'</button>'
+      + (adminMode ? '<button class="sm danger'+(on?' arm':'')+'" type="button" data-act="del-quiz" data-id="'+esc(q.id)+'">'+(on?'Confirm delete':'Delete')+'</button>' : '')
+      + '</div></div>';
+  }).join('');
+}
+async function deleteQuiz(id){
+  try{ await db.doc('quizzes/'+id).delete(); if(active && active.id===id) backToList(); }
+  catch(e){ setStatus('quizStatus','Could not delete: '+(e.message||e.code), 'err'); }
+}
+function validQuiz(q){
+  if(Array.isArray(q)) q = {title:'Untitled quiz', questions:q};
+  if(!q || !Array.isArray(q.questions) || !q.questions.length) return null;
+  const qs = [];
+  for(const x of q.questions){
+    if(!x || !x.q || !Array.isArray(x.options) || x.options.length < 2) return null;
+    if(!Number.isInteger(x.answer) || x.answer < 0 || x.answer >= x.options.length) return null;
+    qs.push({q:String(x.q), options:x.options.map(String), answer:x.answer});
+  }
+  return {title:String(q.title||'Untitled quiz'), plus:Number.isFinite(q.plus)?q.plus:4, minus:Number.isFinite(q.minus)?q.minus:-1, questions:qs, createdAt:Date.now()};
+}
+function readFile(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(r.error); r.readAsText(f); }); }
+async function importQuizzes(files){
+  let ok = 0;
+  for(const f of [...files]){
+    try{
+      const q = validQuiz(JSON.parse(await readFile(f)));
+      if(!q) throw new Error('bad format');
+      await db.collection('quizzes').add(q); ok++;
+    }catch(e){ setStatus('quizStatus', f.name+' is not a valid quiz file. Check the JSON format.', 'err'); return; }
+  }
+  setStatus('quizStatus', ok+' quiz'+(ok>1?'zes':'')+' added.', 'ok');
+}
+
+/* builder */
+function addBuilderQ(){
+  const d = document.createElement('div'); d.className = 'qblock';
+  d.innerHTML = '<textarea rows="2" class="bq" placeholder="Question text"></textarea>'
+    + [0,1,2,3].map(i => '<input type="text" class="bo" placeholder="Option '+'ABCD'[i]+'">').join('')
+    + '<label class="hint">Correct option <select class="ba"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select></label>'
+    + '<div><button class="danger sm" type="button" data-act="rm-q">Remove question</button></div>';
+  $('builder').appendChild(d);
+}
+async function saveBuilt(){
+  const blocks = [...document.querySelectorAll('#builder .qblock')];
+  const qs = blocks.map(b => {
+    const raw = [...b.querySelectorAll('.bo')].map(i => i.value.trim());
+    const ans = +b.querySelector('.ba').value;
+    const options = raw.filter(Boolean);
+    const answer = raw[ans] ? raw.slice(0,ans).filter(Boolean).length : -1;
+    return {q:b.querySelector('.bq').value.trim(), options, answer};
+  });
+  const q = validQuiz({title:$('bTitle').value.trim()||'Untitled quiz', plus:+$('bPlus').value, minus:+$('bMinus').value, questions:qs});
+  if(!q){ setStatus('quizStatus','Fill in every question with at least two options, and make sure the correct option is not blank.', 'err'); return; }
+  try{
+    await db.collection('quizzes').add(q);
+    $('builder').innerHTML = ''; $('bTitle').value = ''; addBuilderQ();
+    setStatus('quizStatus','Quiz saved.','ok');
+  }catch(e){ setStatus('quizStatus','Could not save: '+(e.message||e.code), 'err'); }
+}
+
+/* taking a quiz */
+function startQuiz(id){
+  active = quizzes.find(q => q.id === id); if(!active) return;
+  graded = false;
+  $('quizTitle').textContent = active.title;
+  $('markNote').textContent = '+'+active.plus+' correct · '+active.minus+' wrong · 0 skipped';
+  $('quizResult').innerHTML = '';
+  $('submitBtn').textContent = 'Submit quiz';
+  $('quizForm').innerHTML = active.questions.map((q,i) =>
+    '<div class="q"><p>'+(i+1)+'. '+esc(q.q)+'</p>'
+    + q.options.map((o,j) => '<label class="opt"><input type="radio" name="q'+i+'" value="'+j+'"><span>'+esc(o)+'</span></label>').join('')
+    + '<button type="button" class="ghost sm" data-act="clear" data-i="'+i+'">Clear answer</button></div>').join('');
+  $('quizHome').hidden = true; $('quizTaker').hidden = false;
+  $('quizTaker').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function backToList(){ active = null; $('quizTaker').hidden = true; $('quizHome').hidden = false; }
+async function gradeQuiz(){
+  if(graded){ startQuiz(active.id); return; }
+  let score = 0, right = 0, wrong = 0, skipped = 0;
+  const fd = new FormData($('quizForm'));
+  active.questions.forEach((q,i) => {
+    const v = fd.get('q'+i);
+    document.querySelectorAll('input[name=q'+i+']').forEach((r,j) => {
+      r.disabled = true;
+      const lab = r.closest('.opt');
+      if(j === q.answer) lab.classList.add('correct');
+      else if(v !== null && +v === j) lab.classList.add('wrong');
+    });
+    if(v === null) skipped++;
+    else if(+v === q.answer){ score += active.plus; right++; }
+    else { score += active.minus; wrong++; }
+  });
+  graded = true;
+  const max = active.questions.length * active.plus;
+  $('quizResult').innerHTML = '<div class="result"><div class="score">'+score+' / '+max+'</div>'
+    + '<div class="chips"><span class="chip g">'+right+' correct · +'+(right*active.plus)+'</span>'
+    + '<span class="chip b">'+wrong+' wrong · '+(wrong*active.minus)+'</span>'
+    + '<span class="chip">'+skipped+' skipped · 0</span></div>'
+    + '<p class="status" id="sendStatus"></p></div>';
+  $('submitBtn').textContent = 'Retake quiz';
+  $('quizResult').scrollIntoView({behavior:'smooth', block:'nearest'});
+
+  if(isAdmin){ setStatus('sendStatus','Admin practice run: this mark is not recorded.'); return; }
+  setStatus('sendStatus','Sending your marks…');
+  const rec = {quizId:active.id, title:active.title, score, max, right, wrong, skipped, at:Date.now()};
+  try{
+    await sendResult(rec);
+    setStatus('sendStatus','Your marks were sent.','ok');
+  }catch(e){
+    setStatus('sendStatus', e && e.code==='invalid_argument'
+      ? 'Your marks could not be sent. Ask your teacher to give you edit-and-use (Contributor) access.'
+      : 'Your marks could not be sent. Check your connection and take the quiz again.', 'err');
+  }
+}
+
+/* ---------- events ---------- */
+function arm(key){
+  armed = key; clearTimeout(armTimer);
+  armTimer = setTimeout(() => { armed = null; renderSheets(); renderQuizzes(); }, 4000);
+  renderSheets(); renderQuizzes();
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  if(act === 'view') viewSheet(id);
+  else if(act === 'close-viewer') closeViewer();
+  else if(act === 'del-sheet'){ if(armed === 'sheet:'+id){ armed = null; deleteSheet(id); } else arm('sheet:'+id); }
+  else if(act === 'del-quiz'){ if(armed === 'quiz:'+id){ armed = null; deleteQuiz(id); } else arm('quiz:'+id); }
+  else if(act === 'start') startQuiz(id);
+  else if(act === 'back') backToList();
+  else if(act === 'submit') gradeQuiz();
+  else if(act === 'clear'){ if(!graded) document.querySelectorAll('input[name=q'+b.dataset.i+']').forEach(r => r.checked = false); }
+  else if(act === 'add-q') addBuilderQ();
+  else if(act === 'rm-q') b.closest('.qblock').remove();
+  else if(act === 'save-quiz') saveBuilt();
+  else if(act === 'toggle-student'){ if(openStudents.has(id)) openStudents.delete(id); else openStudents.add(id); renderResults(); }
+  else if(act === 'preview'){ preview = !preview; setMode(); }
+});
+$('pickPdf').addEventListener('click', () => $('pdfInput').click());
+$('pdfInput').addEventListener('change', async e => { const f = [...e.target.files]; e.target.value = ''; await uploadPdfs(f); });
+$('quizFile').addEventListener('change', async e => { const f = [...e.target.files]; e.target.value = ''; await importQuizzes(f); });
+
+init();
+</script>
